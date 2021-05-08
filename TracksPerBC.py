@@ -5,7 +5,9 @@ import ROOT, sys
 wait = False
 
 ROOT.gStyle.SetOptStat(0)
+ROOT.gStyle.SetOptFit(1)
 
+# returns a histogram representing probabilities for discrete values specified by the provided function
 def getPdfHistogramFromFunction(fPdf, draw = False, canvas = None):
     if draw:
         fPdf.Draw()
@@ -25,6 +27,7 @@ def getPdfHistogramFromFunction(fPdf, draw = False, canvas = None):
     pdfHisto = fPdf.GetHistogram()
     return pdfHisto
 
+# returns the PDF of a sum of two random variables described by the two provided PDFs in the histograms
 def getPdfOfSum(h1, h2, n):
     # the sum is the convolution of them, bin 1 has entry for 0 tracks, etc
     hSum = h1.Clone() # create new with same range etc
@@ -50,6 +53,7 @@ def getPdfOfSum(h1, h2, n):
         hSum.SetBinContent(nTrk+1, nTrkProb)
     return hSum
 
+# generate histograms for the PDFs of the number of expected measurements for a (range of) fixed number of interactions
 def makeNInteractionHistos(perIntHisto, maxInteractions, maxMeasurements, draw = False, canvas = None):
     print("Will now make pdfs for number of measurements for a fixed number of interactions, from 0 to %d" % maxInteractions)
     # dict to populate, one entry per fixed number of interactions
@@ -88,19 +92,16 @@ def makeNInteractionHistos(perIntHisto, maxInteractions, maxMeasurements, draw =
         ROOT.gPad.WaitPrimitive()
     return pdfs
 
+# thin wrapper for generating a function for the Poisson distribution describing the number of interactions for a given mu value
 def getInteractionsPerBunchCrossingPdf(muNtrkPdfs, mu, muMax):#, wait = False, c = None):
-    myPoisson = ROOT.TF1("myPois %d" % mu, "TMath::Poisson(x,[mu])", -0.5, muMax+0.5)
+    myPoisson = ROOT.TF1("myPois %f" % mu, "TMath::Poisson(x,[mu])", -0.5, muMax+0.5)
     myPoisson.SetParameter("mu", mu)
     myPoisson.SetNpx(muMax+1)
-    #poisson.Print()
-    #poisson.Draw("HIST")
-    #pHist = poisson.GetHistogram()
-    #ROOT.gPad.WaitPrimitive()
     return myPoisson
 
 # we need to adopt a few limitations
-measurementsMax = 350 # maximum number of tracks per BC we'll consider here
-muMax = 150 # needs to be set in harmony with above, where the scaling depends on type of measurements used (and their typical number per interaction)
+measurementsMax = 200 # maximum number of tracks per BC we'll consider here
+muMax = 80 # needs to be set in harmony with above, where the scaling depends on type of measurements used (and their typical number per interaction)
 
 # now try it out - make a function
 f = ROOT.TF1("myFunc1", "e**(-0.272581-1.933719*x)+e**(-2.107228-0.198227*x)", -0.5, 19.5)
@@ -126,7 +127,8 @@ leg = ROOT.TLegend(0.72,0.63,0.88,0.85)
 leg.SetBorderSize(0)
 leg.SetFillStyle(0)
 
-for i, mu in enumerate([23, 24, 25, 26, 27, 28, 29, 30]):
+print("Will now generate distributions for three test mu values")
+for i, mu in enumerate([24, 27, 30]):
     print("Average mu = %f" % mu)
     c.cd(3)
     nIntPerBcDict[mu] = getInteractionsPerBunchCrossingPdf(pdfDict, mu, muMax)
@@ -183,11 +185,11 @@ def tracksPerBC(x, params):
 tracksPerBCFunction = ROOT.TF1("TracksPerBC", tracksPerBC, -0.5, measurementsMax+0.5, 2) # last argument is the number of parameters of the function
 
 # generate some data
-mu = 23.2
+mu = 12.4
 nIntPerBc = getInteractionsPerBunchCrossingPdf(pdfDict, mu, muMax)
 nIntPerBcHisto = nIntPerBc.GetHistogram()
 nTracksPerBCHisto = ROOT.TH1D("Tracks per BC for mu of %f" % mu, "Tracks per bunch crossing for <#mu> = %f" % mu, measurementsMax+1, -0.5, measurementsMax+0.5)
-for event in range(0, 100000):
+for event in range(0, 10000):
     tracks = 0
     nInt = nIntPerBc.GetRandom()
     #print(nInt)
